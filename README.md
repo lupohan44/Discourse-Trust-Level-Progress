@@ -1,15 +1,21 @@
 # Discourse Trust-Level Progress Tracker
 
-> **Track how close you are to the next Trust Level on _any_ Discourse forum, right on the “Profile → Summary” page.**
+> **Track how close you are to the next Trust Level on _any_ Discourse forum—either as a simple stats overlay _or_ a stylish floating widget.**
 
 ---
 
 ## ✨ Features
-- **Universal** – works on every Discourse site, even those hosted in a sub-directory (e.g. `example.com/forum`).  
-- **Auto-detects thresholds** for TL 3 (Regular) based on the forum’s last-30-day activity, matching core Discourse logic.  
-- **Colour-coded progress** – green when a requirement is met, red when you still have work to do.  
-- **SPA-friendly** – refreshes automatically on client-side navigation thanks to the new `urlchange` event (and graceful fallback for older browsers).  
-- **Zero configuration** – install once, it just works.
+| Script | What it does | Best for |
+| ------ | ------------ | -------- |
+| **`progress.user.js`** | Adds progress numbers (e.g. `34 / 100`) and green/red colouring directly on the “Profile → Summary” page. | Minimal, page-native feel |
+| **`progress-widget.user.js`** | Displays a modern floating sidebar widget with animated bar, quick-view cards and a detailed checklist (supports dark mode). | Eye-catching, see status anywhere |
+
+Both scripts are:
+
+- **Universal** – work on every Discourse site, even those hosted in a sub-directory (`example.com/forum`).  
+- **Autonomous** – auto-detect TL 3 thresholds from each site’s 30-day activity.  
+- **SPA-friendly** – update automatically on in-page navigation (`urlchange` with graceful fallback).  
+- **Zero configuration** – install once, they just work.
 
 ---
 
@@ -18,45 +24,52 @@
 1. **Install Tampermonkey**  
    - Chrome / Edge: <https://tampermonkey.net/?browser=chrome>  
    - Firefox: <https://tampermonkey.net/?browser=firefox>
-2. **Open the raw script URL**  
-   <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.user.js>  
-   Tampermonkey will prompt you to **“Install userscript”**.  
-3. **Click _Install_**. That’s it!  
-   - The script is named **“Discourse Trust-Level Progress Tracker”** and is currently at **v2025-06-03**.  
-   - Future updates will be fetched automatically by Tampermonkey (default every 24 h).
 
-> **Tip:** if Tampermonkey does not open the install dialog, create a new script, delete the template, and paste the file contents.
+2. **Pick your preferred script**
+
+| Script | Raw URL |
+| ------ | ------- |
+| Overlay version | <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.user.js> |
+| **Widget version (new!)** | <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress-widget.user.js> |
+
+3. Open the raw link → Tampermonkey will prompt **“Install userscript”** → click **_Install_**.
+
+Future updates are fetched automatically by Tampermonkey (default every 24 h).
+
+> **Tip:** If the install dialog doesn’t appear, create a new script manually, remove the template and paste the file contents.
 
 ---
 
 ## 🛠 How it works
 
-The script calls two public endpoints:
+Both scripts call two public Discourse endpoints:
 
-- `GET /about.json` – site-wide stats (needed for TL3 dynamic caps)  
-- `GET /u/<username>/summary.json` – your personal stats  
+| Endpoint | Purpose |
+| -------- | ------- |
+| `GET /about.json` | Site-wide stats (needed for TL 3 dynamic caps) |
+| `GET /u/&lt;username&gt;/summary.json` | Your personal stats |
 
-It then overlays each requirement under **Stats** with “`current / target`” and colours the text:
+They then compute each requirement, show **`current / target`** and colour the result.
 
-| Colour | Meaning |
-| ------ | ------- |
-| 🟢 green | Requirement met |
-| 🔴 red   | Still need work |
+Widget version additionally:
+
+- Uses `/session/current.json` to detect login silently.
+- Shows a floating button with animated progress bar and a checklist pop-out.
 
 ---
 
 ## 🎛 Customisation
 
-All default thresholds are defined near the top of the script (object `TL_REQUIREMENTS`).  
-If your forum uses non-standard settings, edit those numbers and re-save.
+Threshold defaults live near the top of each script (`TL_REQUIREMENTS`).  
+If your forum uses custom numbers, tweak them and save.
 
 ---
 
 ## 🧑‍💻 Contributing
 
-1. Fork -> hack -> PR.  
-2. Keep the codebase **framework-free** and in plain ES 2020 to maximise compatibility.  
-3. Please test on at least one self-hosted Discourse in a sub-folder before submitting changes.
+1. Fork → hack → PR.  
+2. Keep it **framework-free** (plain ES 2020) for maximum compatibility.  
+3. Test on at least one self-hosted Discourse in a sub-folder before submitting.
 
 ---
 
@@ -68,33 +81,33 @@ If your forum uses non-standard settings, edit those numbers and re-save.
 
 ## 🙏 Credits
 
-Originally inspired by a Linux.do community post: <https://linux.do/t/topic/29204>.  
-Ported and generalised by **@lupohan44** – see commit history for details.
+- Inspired by a Linux.do community post: <https://linux.do/t/topic/29204>.  
+- Original overlay script by **@lupohan44** – see commit history.  
+- Floating widget UX adapted from <https://linux.do/t/topic/682907>.  
+- Special thanks to everyone in the Discourse & Linux.do communities for feedback and ideas ❤️.
 
 ---
 
 ## 📑 项目说明（简体中文）
 
-**Discourse 信任等级进度追踪脚本** – 在任何 Discourse 站点的「个人资料 → 概览」页显示你距离下一等级还差多少。
+**Discourse 信任等级进度追踪脚本** – 现在有两种口味：
+
+| 脚本 | 功能 |
+| ---- | ---- |
+| `progress.user.js` | 在「个人资料 → 概览」页，直接把各项指标改为 `当前/目标` 并标红/绿 |
+| `progress-widget.user.js` | 新增右侧悬浮小部件，动画进度条 + 详细清单，任何页面都能查看 |
 
 ### 安装步骤（Tampermonkey）
 
 1. 安装 Tampermonkey 浏览器扩展  
-2. 打开脚本原文件地址  
-   <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.user.js>  
+2. 打开脚本原文件地址（任选其一）  
+   - 覆盖版：<https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.user.js>  
+   - **悬浮版：<https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress-widget.user.js>**  
    Tampermonkey 会自动弹出安装窗口  
-3. 点击 **安装**，刷新你的 Discourse 个人档案页即可看到效果
+3. 点击 **安装**，刷新页面即可看到效果
 
-> **提示:** 如果没有弹窗，可手动新建脚本并粘贴源码。
-
-### 功能亮点
-- 通用所有 Discourse 论坛，支持子目录部署
-- 自动计算 TL 3 动态阈值
-- 进度用红 / 绿颜色直观标识
-- 兼容单页应用导航
-
-如需自定义阈值，修改脚本顶部 `TL_REQUIREMENTS` 对象即可。
+**自定义阈值** → 修改脚本顶部 `TL_REQUIREMENTS` 即可。
 
 ---
 
-Enjoy and level-up faster!
+Enjoy—level up faster, and choose the UI that suits you!
