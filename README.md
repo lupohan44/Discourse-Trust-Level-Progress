@@ -19,7 +19,7 @@
    - Chrome / Edge: <https://tampermonkey.net/?browser=chrome>  
    - Firefox: <https://tampermonkey.net/?browser=firefox>
 2. **Open the raw script URL**  
-   <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.js>  
+   <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.user.js>  
    Tampermonkey will prompt you to **“Install userscript”**.  
 3. **Click _Install_**. That’s it!  
    - The script is named **“Discourse Trust-Level Progress Tracker”** and is currently at **v2025-06-03**.  
@@ -81,7 +81,7 @@ Ported and generalised by **@lupohan44** – see commit history for details.
 
 1. 安装 Tampermonkey 浏览器扩展  
 2. 打开脚本原文件地址  
-   <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.js>  
+   <https://raw.githubusercontent.com/lupohan44/Discourse-Trust-Level-Progress/main/progress.user.js>  
    Tampermonkey 会自动弹出安装窗口  
 3. 点击 **安装**，刷新你的 Discourse 个人档案页即可看到效果
 
