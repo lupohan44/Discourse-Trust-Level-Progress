@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Discourse Trust-Level Progress Tracker
+// @name         Discourse Trust-Level Progress Tracker (directory API)
 // @namespace    https://github.com/lupohan44/Discourse-Trust-Level-Progress
-// @version      2025-06-03
+// @version      2025-06-03.1
 // @description  Shows how many requirements you still need to reach the next trust level on any Discourse forum (Profile → Summary page).
 // @author       Hua
 // @match        *://*/u/*/summary*
@@ -13,37 +13,25 @@
 (() => {
   'use strict';
 
-  /*************************************************************************
-   * Utilities
-   *************************************************************************/
+  /* ---------- Utilities ---------- */
 
-  /**
-   * Build the API base path.
-   * Supports forums hosted in a sub-directory, e.g. https://example.com/forum.
-   */
   function getApiBase() {
     const { origin, pathname } = location;
-    // Matches "/forum/u/username/summary" → baseDir = "/forum"
     const match = pathname.match(/^\/([^/]+)\/u\//);
     const baseDir = match ? `/${match[1]}` : '';
     return origin + baseDir;
   }
-
-  /** API root, e.g. "https://discuss.example.com" or "https://example.com/forum" */
   const API_BASE = getApiBase();
 
-  /** Extract the current profile’s username from the URL. */
   function getUsername() {
-    const match = location.pathname.match(/\/u\/([^/?#]+)\//);
-    return match ? match[1] : null;
+    const m = location.pathname.match(/\/u\/([^/?#]+)\//);
+    return m ? m[1] : null;
   }
 
-  /*************************************************************************
-   * Trust-level requirements (Discourse defaults)
-   * Feel free to tweak these values if your community uses custom settings.
-   *************************************************************************/
+  /* ---------- Trust-level targets (defaults) ---------- */
+
   const TL_REQUIREMENTS = {
-    0: { topics_entered: 5, posts_read_count: 30, time_read: 60 * 10 },
+    0: { topics_entered: 5, posts_read_count: 30, time_read: 600 },
     1: {
       days_visited: 15,
       likes_given: 1,
@@ -51,11 +39,10 @@
       posts_count: 3,
       topics_entered: 20,
       posts_read_count: 100,
-      time_read: 60 * 60
+      time_read: 3600
     },
     2: {
       days_visited: 50,
-      // These three are dynamically updated at runtime
       posts_read_count: 0,
       topics_entered: 0,
       likes_given: 30,
@@ -64,137 +51,122 @@
     }
   };
 
-  /**
-   * CSS selectors for stats elements on the Summary page.
-   * Keys must match the property names used by the Discourse API.
-   */
-  const SUMMARY_SELECTORS = {
-    days_visited:    'li.stats-days-visited    > div > span > span',
-    likes_given:     'li.stats-likes-given     > a   > div > span > span',
-    likes_received:  'li.stats-likes-received  > div > span > span',
-    posts_count:     'li.stats-posts-count     > a   > div > span > span',
-    topics_entered:  'li.stats-topics-entered  > div > span > span',
-    posts_read_count:'li.stats-posts-read      > div > span > span',
-    time_read:       'li.stats-time-read       > div > span'
+  /* ---------- CSS hooks ---------- */
+
+  const SELECTOR = {
+    days_visited:     'li.stats-days-visited    > div > span > span',
+    likes_given:      'li.stats-likes-given     > a   > div > span > span',
+    likes_received:   'li.stats-likes-received  > div > span > span',
+    posts_count:      'li.stats-posts-count     > a   > div > span > span',
+    topics_entered:   'li.stats-topics-entered  > div > span > span',
+    posts_read_count: 'li.stats-posts-read      > div > span > span',
+    time_read:        'li.stats-time-read       > div > span'
   };
 
-  /*************************************************************************
-   * API helpers
-   *************************************************************************/
+  /* ---------- API helpers ---------- */
 
-  /** Fetch site-wide statistics (needed for TL3 dynamic thresholds). */
   const fetchSiteStats = () =>
     fetch(`${API_BASE}/about.json`, { credentials: 'same-origin' })
-      .then(r => {
-        if (!r.ok) throw new Error(`about.json ${r.status}`);
-        return r.json();
+      .then(r => r.ok ? r.json() : Promise.reject(r.status));
+
+  const fetchUserDirStats = username =>
+    fetch(`${API_BASE}/directory_items?period=quarterly&order=days_visited`, {
+        credentials: 'same-origin',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(({ directory_items }) => {
+        const item = directory_items.find(i => i.user?.username === username)
+                  || directory_items[0];
+        if (!item) throw new Error('user not found');
+        return {
+          days_visited:     item.days_visited,
+          likes_given:      item.likes_given,
+          likes_received:   item.likes_received,
+          posts_count:      item.post_count,
+          topics_entered:   item.topics_entered,
+          posts_read_count: item.posts_read,
+          time_read:        null,
+          trust_level:      item.user?.trust_level ?? 0
+        };
       });
+    const fetchUserSummary = username =>
+    fetch(`${API_BASE}/u/${username}/summary.json`, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then(res => ({
+        stats:        res.user_summary,
+        trust_level:  res.users?.[0]?.trust_level ?? 0
+    }));
 
-  /** Fetch the summary & stats for the given user. */
-  const fetchUserSummary = username =>
-    fetch(`${API_BASE}/u/${username}/summary.json`, { credentials: 'same-origin' })
-      .then(r => {
-        if (!r.ok) throw new Error(`summary.json ${r.status}`);
-        return r.json();
-      });
+  /* ---------- Render ---------- */
 
-  /*************************************************************************
-   * Core logic
-   *************************************************************************/
+  function paintStats(trustLevel, stats) {
+    const target = TL_REQUIREMENTS[trustLevel] || TL_REQUIREMENTS[0];
 
-  /**
-   * Update the stats on the page, colouring them green when the target is met.
-   * @param {Object} user         – user object from API
-   * @param {Object} summaryStats – user_summary object from API
-   */
-  function paintStats(user, summaryStats) {
-    const target = TL_REQUIREMENTS[user.trust_level] ?? TL_REQUIREMENTS[0];
-
-    Object.keys(target).forEach(stat => {
+    Object.keys(target).forEach(k => {
+      if (stats[k] == null) return;
       elmGetter
-        .get(SUMMARY_SELECTORS[stat])
+        .get(SELECTOR[k])
         .then(el => {
-          const current = summaryStats[stat];
-          const needed  = target[stat];
-
           el.textContent =
-            stat === 'time_read'
-              ? `${current} / ${needed} seconds`
-              : `${current} / ${needed}`;
-
-          el.style.color = Number(current) >= Number(needed) ? 'green' : 'red';
+            k === 'time_read'
+              ? `${stats[k]} / ${target[k]} s`
+              : `${stats[k]} / ${target[k]}`;
+          el.style.color =
+            Number(stats[k]) >= Number(target[k]) ? 'green' : 'red';
         })
-        .catch(() => {
-          /* Selector missing on this forum/theme – safe to ignore */
-        });
+        .catch(() => {});
     });
   }
 
-  /**
-   * Refresh the displayed progress (fetches site + user data in parallel).
-   */
-  async function refresh() {
-    const username = getUsername();
-    if (!username) return;
+    async function refresh() {
+        const username = getUsername();
+        if (!username) return;
 
-    try {
-      const [site, user] = await Promise.all([
-        fetchSiteStats(),
-        fetchUserSummary(username)
-      ]);
+        try {
+            const [site, summaryObj, dir] = await Promise.all([
+                fetchSiteStats(),
+                fetchUserSummary(username),
+                fetchUserDirStats(username)
+            ]);
 
-      const siteStats   = site.about.stats;
-      const summary     = user.user_summary;
-      const userObj     = (user.users && user.users[0]) || { trust_level: 0 };
+            const stats = { ...summaryObj.stats };
+            Object.entries(dir).forEach(([k, v]) => {
+                if (v != null && k !== 'trust_level') stats[k] = v;
+            });
 
-      // Dynamic thresholds for TL3 (user.trust_level === 2)
-      if (userObj.trust_level === 2) {
-        TL_REQUIREMENTS[2].posts_read_count = Math.min(
-          Math.floor(siteStats.posts_30_days   / 4),
-          20000
-        );
-        TL_REQUIREMENTS[2].topics_entered = Math.min(
-          Math.floor(siteStats.topics_30_days  / 4),
-          500
-        );
-      }
+            const trustLevel = dir.trust_level ?? summaryObj.trust_level;
 
-      paintStats(userObj, summary);
-    } catch (err) {
-      console.error('[TL-Tracker] refresh() failed:', err);
+            if (trustLevel === 2) {
+                TL_REQUIREMENTS[2].posts_read_count =
+                    Math.min(Math.floor(site.about.stats.posts_30_days / 4), 20000);
+                TL_REQUIREMENTS[2].topics_entered =
+                    Math.min(Math.floor(site.about.stats.topics_30_days / 4), 500);
+            }
+
+            paintStats(trustLevel, stats);
+        } catch (e) {
+            console.error('[TL-Tracker] refresh error', e);
+        }
     }
-  }
 
-  /*************************************************************************
-   * SPA navigation hooks
-   *************************************************************************/
+  /* ---------- SPA hooks ---------- */
 
-  // Initial load
   refresh();
-
-  // Modern browsers: native `urlchange` event
-  if (window.onurlchange !== undefined) {
+  if ('onurlchange' in window) {
     window.addEventListener('urlchange', e => {
       if (/\/u\/[^/]+\/summary/.test(e.url)) refresh();
     });
   } else {
-    // Fallback: patch history API + popstate
     const { pushState, replaceState } = history;
-
-    const checkRoute = () => {
-      if (/\/u\/[^/]+\/summary/.test(location.pathname)) refresh();
-    };
-
-    history.pushState = function (...args) {
-      pushState.apply(this, args);
-      checkRoute();
-    };
-
-    history.replaceState = function (...args) {
-      replaceState.apply(this, args);
-      checkRoute();
-    };
-
-    window.addEventListener('popstate', checkRoute);
+    const check = () => /\/u\/[^/]+\/summary/.test(location.pathname) && refresh();
+    history.pushState = function (...a) { pushState.apply(this, a); check(); };
+    history.replaceState = function (...a) { replaceState.apply(this, a); check(); };
+    addEventListener('popstate', check);
   }
 })();
