@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Discourse Trust-Level Progress Tracker (directory API)
 // @namespace    https://github.com/lupohan44/Discourse-Trust-Level-Progress
-// @version      2025-06-03.1
-// @description  Shows how many requirements you still need to reach the next trust level on any Discourse forum (Profile → Summary page).
+// @version      2025-06-06
+// @description  Show discourse trust level progress
 // @author       Hua
 // @match        *://*/u/*/summary*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=discourse.org
@@ -50,6 +50,7 @@
       posts_count: 10
     }
   };
+  const TL3_MAINTAIN_IDX = 2;
 
   /* ---------- CSS hooks ---------- */
 
@@ -88,7 +89,7 @@
           posts_count:      item.post_count,
           topics_entered:   item.topics_entered,
           posts_read_count: item.posts_read,
-          time_read:        null,
+          time_read:        null,               // directory 没有
           trust_level:      item.user?.trust_level ?? 0
         };
       });
@@ -140,16 +141,19 @@
                 if (v != null && k !== 'trust_level') stats[k] = v;
             });
 
-            const trustLevel = dir.trust_level ?? summaryObj.trust_level;
+            const trustLevel = dir.trust_level ?? summaryObj.trust_level ?? 0;
+            const isMaintain = trustLevel >= 3;             // TL3+ retention mode
+            const tierIndex  = isMaintain ? TL3_MAINTAIN_IDX : trustLevel;
 
-            if (trustLevel === 2) {
+            /* dynamic thresholds for TL2→3 (also for TL3 retention) */
+            if (tierIndex === 2) {
                 TL_REQUIREMENTS[2].posts_read_count =
                     Math.min(Math.floor(site.about.stats.posts_30_days / 4), 20000);
                 TL_REQUIREMENTS[2].topics_entered =
                     Math.min(Math.floor(site.about.stats.topics_30_days / 4), 500);
             }
 
-            paintStats(trustLevel, stats);
+            paintStats(tierIndex, stats);
         } catch (e) {
             console.error('[TL-Tracker] refresh error', e);
         }
