@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Trust-Level Progress Tracker (directory API)
 // @namespace    https://github.com/lupohan44/Discourse-Trust-Level-Progress
-// @version      2025-06-06
+// @version      2025-10-09
 // @description  Show discourse trust level progress
 // @author       Hua
 // @match        *://*/u/*/summary*
@@ -71,7 +71,7 @@
       .then(r => r.ok ? r.json() : Promise.reject(r.status));
 
   const fetchUserDirStats = username =>
-    fetch(`${API_BASE}/directory_items?period=quarterly&order=days_visited`, {
+    fetch(`${API_BASE}/directory_items?period=quarterly&order=days_visited&name=` + username, {
         credentials: 'same-origin',
         headers: {
             'Accept': 'application/json'
