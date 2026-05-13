@@ -79,7 +79,7 @@
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(({ directory_items }) => {
-        const item = directory_items.find(i => i.user?.username === username)
+        const item = directory_items.find(i => i.user?.username === decodeURIComponent(username))
                   || directory_items[0];
         if (!item) throw new Error('user not found');
         return {
