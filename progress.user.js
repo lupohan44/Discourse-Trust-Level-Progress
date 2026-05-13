@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse Trust-Level Progress Tracker (directory API)
 // @namespace    https://github.com/lupohan44/Discourse-Trust-Level-Progress
-// @version      2025-10-09
+// @version      2026-05-13
 // @description  Show discourse trust level progress
 // @author       Hua
 // @match        *://*/u/*/summary*
