@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Discourse Trust-Level Floating Widget
-// @namespace    https://github.com/lupohan44/Discourse-Trust-Level-Progress
+// @namespace    https://github.com/yourname/discourse-tl-widget
 // @version      2026-05-12
 // @description  A sleek floating widget that shows your progress towards the next trust level on ANY Discourse forum (TL 0 → 3 supported).
 // @author       Hua, uhhhh, Luxisme
